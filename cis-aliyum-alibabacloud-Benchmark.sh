@@ -47,15 +47,13 @@ ssh root@172.31.145.238
 
 # 1.1.1 el montaje de los sistemas de archivos squashfs esté deshabilitado 
 
-#1.1.1 
-
 echo "install squashfs /bin/true
 " > /etc/modprobe.d/squashfs.conf
 
 #quitar modulo no necesario en kernel
 modulo_direccion_fs "rmmod squashfs"  /etc/modprobe.d/squashfs.conf
 
-#1.1.2 
+#1.1.2 asegúrese de que exista una partición separada para / tmp
 echo "crear  tmpfs /fstab" 
 > /tmp/etc/fstab
 
@@ -125,6 +123,11 @@ yum repolist
 
 #1.2.2 Asegúrese de que las claves GPG estén configuradas
 rpm -q gpg-pubkey --qf '%{name}-%{version}-%{release} --> %{summary}\n'
+
+#1.2.3 Asegúrese de que gpgcheck esté activado globalmente
+gpg --quiet --with-fingerprint /etc/pki/rpm-gpg/RPM-GPG-KEY-alibaba_cloud
+vim   /etc/yum.sed -i 's/gpgcheck=0/gpgcheck=1/g' /etc/yum.confconfs
+
 
 
 
