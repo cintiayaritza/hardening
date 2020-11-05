@@ -223,3 +223,158 @@ gpgcheck=1
 #Edite los archivos que fallan en /etc/zypp/repos.d/*.repo y configure todas las instancias de gpgcheck en 1.
 vim /etc/zypp.sed -l ' s / gpgcheck = 0 / gpgcheck = 1 / g ' /etc/zypp/zypp.conf
 
+
+# #################################################### ###########################################################
+# 1. 3 CONFIGURACION SUDO 
+# #################################################################################################################
+
+# 1.3.1 Asegúrese de que sudo esté instalado (automatizado)
+ # sudo permite a un usuario autorizado ejecutar un comando como superusuario u otro usuario, como especificado por la política de seguridad.
+ rpm -q sudo
+#Ejecute el siguiente comando para instalar sudo.
+ zypper install sudo
+
+#1.3.2 Asegúrese de que los comandos sudo usen pty (automatizado)
+
+# Los atacantes pueden ejecutar un programa malicioso usando sudo, que nuevamente bifurcaría un fondo proceso que permanece incluso cuando el programa principal ha terminado de ejecutarse.
+#Esto se puede mitigar configurando sudo para ejecutar otros comandos solo desde un pseudo-pty, si el registro de E / S está activado o no.
+
+#Edite el archivo / etc / sudoers o un archivo en /etc/sudoers.d/ con visudo o visudo -f <PATH ARCHIVO> y agregue la siguiente línea: Defaults use_pty
+vim etc/sudoers.d/
+#agrega la siguiente linea 
+visudo -f <Defaults use_pty>
+
+#1.3.3 Asegúrese de que el archivo de registro de sudo exista (automatizado)
+# sudo puede usar un archivo de registro personalizado
+
+#Verifique que sudo tenga un archivo de registro personalizado configurado Ejecute el siguiente comando:
+# grep -Ei '^\s*Defaults\s+([^#;]+,\s*)?logfile\s*=\s*(")?[^#;]+(")?'
+/etc/sudoers /etc/sudoers.d/*Defaults logfile="/var/log/sudo.log"
+
+# edite el archivo / etc / sudoers o un archivo en /etc/sudoers.d/ con visudo o visudo -f <PATH ARCHIVO> y agregue la siguiente línea:
+Defaults logfile="/var/log/sudo.log"
+vi/etc/sudoers.d/
+visudo -f <Defaults logfile="/var/log/sudo.log">
+
+####################################################################################################
+# 1.4 Comprobación de la integridad del sistema de archivos
+#AIDE es una herramienta de verificación de integridad de archivos
+###############################################################################################################
+
+# 1.4.1  Asegúrese de que AIDE esté instalado (automatizado)
+
+#AIDE toma una instantánea del estado del sistema de archivos, incluidos los tiempos de modificación, los permisos yhashes de archivos que luego se pueden usar para comparar con el estado actual del sistema de archivos para
+#detectar modificaciones en el sistema.
+
+#Ejecute el siguiente comando y verifique que el asistente esté instalado:
+ rpm -q aide
+#Configure AIDE según corresponda a su entorno Ejecute el siguiente comando para instalar AIDE
+  zypper install aide 
+  #Ejecute los siguientes comandos para inicializar AIDE:
+   aide --init
+ mv /var/lib/aide/aide.db.new /var/lib/aide/aide.db
+ 
+ # 1.4.2 Asegúrese de que la integridad del sistema de archivos se verifique con regularidad (automatizado)
+ 
+ #La verificación periódica de archivos permite al administrador del sistema determinar de forma regular si Los archivos críticos se han modificado de forma no autorizada.
+ 
+ #Ejecute los siguientes comandos para determinar si hay un trabajo cron programado para ejecutar el asistente
+  crontab -u root -l | grep aide
+  grep -r aide /etc/cron.* /etc/crontab
+  
+  #Ejecute los siguientes comandos para verificar que aidecheck.service y aidcheck.timer estén habilitado y aidecheck.timer se está ejecutando
+  systemctl is-enabled aidecheck.service
+systemctl is-enabled aidecheck.timer
+systemctl status aidecheck.timer
+
+#Si cron se utilizará para programar y ejecutar la verificación auxiliar Ejecute el siguiente comando:
+crontab -u root -e
+#Agregue la siguiente línea al crontab
+0 5 * * * /usr/sbin/aide --check
+O
+#Si aidecheck.service y aidecheck.timer se usarán para programar y ejecutar la verificación de asistentes:
+#Cree o edite el archivo /etc/systemd/system/aidecheck.service y agregue lo siguiente líneas: 
+vi /etc/system/aidecheck.service 
+
+[Unit]
+Description=Aide Check
+[Service]
+Type=simple
+ExecStart=/usr/sbin/aide --check
+[Install]
+WantedBy=multi-user.target
+
+#Cree o edite el archivo /etc/systemd/system/aidecheck.timer y agregue las siguientes líneas:
+vi  /etc/systemd/system/aidecheck.timer 
+
+[Unit]
+Description=Aide check every day at 5AM
+[Timer]
+OnCalendar=*-*-* 05:00:00
+Unit=aidecheck.service
+[Install]
+WantedBy=multi-user.target
+
+#Ejecute los siguientes comandos:
+ chown root:root /etc/systemd/system/aidecheck.*
+chmod 0644 /etc/systemd/system/aidecheck.*
+ systemctl daemon-reload
+ systemctl enable aidecheck.service
+ systemctl --now enable aidecheck.timer
+
+##########################################################################################################################
+#1.5 Configuración de arranque seguro
+# se centran en proteger el cargador de arranque y la configuración involucrado en el proceso de arranque directamente.
+  #########################################################################################################################
+
+#1.5.1 Asegúrese de que la contraseña del cargador de arranque esté configurada (automatizada)
+#Configurar la contraseña del cargador de arranque requerirá que cualquier persona que reinicie el sistema debe ingresar
+#una contraseña antes de poder establecer los parámetros de arranque de la línea de comandos
+#Ejecute los siguientes comandos:
+ grep "^\s*set superusers" /boot/grub2/grub.cfg
+set superusers="<cintya >"
+# grep "^\s*password" /boot/grub2/grub.cfg
+password_pbkdf2 <username> <encrypted-password>
+
+#Cree una contraseña cifrada con grub2-mkpasswd-pbkdf2:
+ grub2-mkpasswd-pbkdf2
+Enter password: <xxxxxxxx>
+Reenter password: <xxxxxxx>
+Your PBKDF2 is <xxxxxxxxxxxxx>
+
+#agregue lo siguiente en /etc/grub.d/40_custom
+ vi /etc/grub.d/40_custom
+ set superusers="<cintya>"
+password_pbkdf2 <username> <encrypted-password>
+
+#Ejecute el siguiente comando para actualizar la configuración de grub2:
+ grub2-mkconfig -o /boot/grub2/grub.cfg
+
+#1.5.2 Ensure permissions on bootloader config are configured (Automated)
+
+#Establecer los permisos de lectura y escritura para root solo evita que los usuarios no root ver los parámetros de arranque o cambiarlos. Usuarios no root que leen el arranque
+#los parámetros pueden identificar debilidades en la seguridad al arrancar y ser capaces de explotar ellos.
+
+#Ejecute el siguiente comando y verifique que Uid y Gid sean 0 / root y que Access no otorgue permisos para agrupar u otros:
+ stat /boot/grub2/grub.cfg
+
+#Ejecute los siguientes comandos para establecer la propiedad y los permisos en su grub configuración:
+chown root:root /boot/grub2/grub.cfg
+ chmod og-rwx /boot/grub2/grub.cfg
+ 
+ #1.5.3 Asegurar la autenticación requerida para el modo de usuario único (automatizado)
+ 
+#El modo de usuario único (modo de rescate) se utiliza para la recuperación cuando el sistema detecta un problema durante el arranque o por selección manual desde el gestor de arranque.
+
+# Ejecute los siguientes comandos y verifique que se use / sbin / sulogin o / usr / sbin / sulogin
+ grep /systemd-sulogin-shell /usr/lib/systemd/system/rescue.service
+ grep /systemd-sulogin-shell /usr/lib/systemd/system/emergency.service
+
+#Edite /usr/lib/systemd/system/rescue.service y agregue / modifique la siguiente línea:
+ vi /urs/lib/systemd/system/rescue.service
+ ExecStart=-/usr/lib/systemd/systemd-sulogin-shell rescue
+ 
+ #edite /usr/lib/systemd/system/emergency.service y agregue / modifique la siguiente línea:
+ vi /usr/lib/systemd/system/emergency.service
+ ExecStart=-/usr/lib/systemd/systemd-sulogin-shell emergency
+ 
