@@ -1787,8 +1787,222 @@ ip6tables -L
     ip6tables -A INPUT -p <protocol> --dport <port> -m state --state NEW -j ACCEPT
 
     #4 Logging and Auditing
+#System auditing, through auditd, allows system administrators to monitor their systems such that they can detect unauthorized access or modification of data
+#4.1.1 Ensure auditing is enabled
+#The capturing of system events provides system administrators with information to allow them to determine if unauthorized access to their system is occurring.
+#4.1.1.1 Ensure auditd is installed (Automated)
+#auditd is the userspace component to the Linux Auditing System. It's responsible for writing audit records to the disk
+#Run the following command and verify auditd is installed:
+ rpm -q audit
+ 
+ #Run the following command to Install auditd
+ zypper install audit
+ 
+ #4.1.1.2 Ensure auditd service is enabled and running (Automated)
+ #Turn on the auditd daemon to record system events
+ 
+ #Run the following command to verify auditd is enabled:
+systemctl is-enabled auditd
+#Run the following command to verify that auditd is running:
+ systemctl status auditd | grep 'Active: active (running) '
+ 
+ #Run the following command to enable and start auditd:
+  systemctl --now enable auditd
 
-    
+#4.1.1.3 Ensure auditing for processes that start prior to auditd is enabled (Automated)
+#Configure grub so that processes that are capable of being audited can be audited even if they start up prior to auditd startup.
+#Run the following command and verify that each linux line has the audit=1 parameter set:
+ grep "^\s*linux" /boot/grub2/grub.cfg | grep -v "audit=1"
+ #Edit /etc/default/grub and add audit=1 to GRUB_CMDLINE_LINUX:
+ echo "GRUB_CMDLINE_LINUX="audit=1"" >> /etc/default/grub
+#Run the following command to update the grub2 configuration:
+ grub2-mkconfig -o /boot/grub2/grub.cfg
+ #4.1.2 Configure Data Retention
+ #4.1.2.1 Ensure audit log storage size is configured (Automated)
+ #Configure the maximum size of the audit log file. Once the log reaches the maximum size, it will be rotated and a new log file will be started.
+ 
+ #Run the following command and ensure output is in compliance with site policy:
+ grep max_log_file /etc/audit/auditd.conf
+ #Set the following parameter in /etc/audit/auditd.conf in accordance with site policy:
+echo "max_log_file = <MB>" >> /etc/audit/auditd.conf
+
+#4.1.2.2 Ensure audit logs are not automatically deleted (Automated)
+#The max_log_file_action setting determines how to handle the audit log file reaching the max file size. A value of keep_logs will rotate the logs but never delete old logs.
+#Run the following command and verify output matches:
+ grep max_log_file_action /etc/audit/auditd.conf
+ #Set the following parameter in /etc/audit/auditd.conf:
+echo "max_log_file_action = keep_logs" >> /etc/audit/auditd.conf
+
+#4.1.2.3 Ensure system is disabled when audit logs are full (Automated)
+#The auditd daemon can be configured to halt the system when the audit logs are full.
+
+#Run the following commands and verify output matches:
+ grep space_left_action /etc/audit/auditd.conf
+ grep action_mail_acct /etc/audit/auditd.conf
+ grep admin_space_left_action /etc/audit/auditd.conf
+ 
+ #Set the following parameters in /etc/audit/auditd.conf:
+echo "space_left_action = email
+action_mail_acct = root
+admin_space_left_action = halt" >> /etc/audit/auditd.conf
+
+#4.1.2.4 Ensure audit_backlog_limit is sufficient (Automated)
+#Run the following commands and verify the audit_backlog_limit= parameter is set to an appropriate size for your organization
+grep "^\s*linux" /boot/grub2/grub.cfg | grep -v "audit_backlog_limit="
+ grep "audit_backlog_limit=" /boot/grub2/grub.cfg
+ #Edit /etc/default/grub and add audit_backlog_limit=<BACKLOG SIZE> to GRUB_CMDLINE_LINUX: GRUB_CMDLINE_LINUX="audit_backlog_limit=8192"
+ vi /etc/default/grub
+ # GRUB_CMDLINE_LINUX="audit_backlog_limit=8192"
+ #Run the following command to update the grub2 configuration:
+ grub2-mkconfig -o /boot/grub2/grub.cfg
+ 
+ #4.1.3 Ensure events that modify date and time information are collected (Automated)
+
+#On a 64 bit system run the following commands:
+ grep time-change /etc/audit/rules.d/*.rules
+ auditctl -l | grep time-change
+
+
+#For 64 bit systems Edit or create a file in the /etc/audit/rules.d/ directory ending in .rules
+ vi /etc/audit/rules.d/time_change.rules
+#and add the following lines:
+#-a always,exit -F arch=b64 -S adjtimex -S settimeofday -k time-change
+#-a always,exit -F arch=b32 -S adjtimex -S settimeofday -S stime -k timechange
+#-a always,exit -F arch=b64 -S clock_settime -k time-change
+#-a always,exit -F arch=b32 -S clock_settime -k time-change
+#-w /etc/localtime -p wa -k time-change
+ 
+ #4.1.4 Ensure events that modify user/group information are collected  (Automated)
+ #Record events affecting the group , passwd (user IDs), shadow and gshadow (passwords) or
+#/etc/security/opasswd (old passwords, based on remember parameter in the PAM configuration) files
+
+#Run the following command and verify rules are in a .rules file:
+ grep identity /etc/audit/rules.d/*.rules
+ #Run the following command and verify the rules are in the running auditd config:
+ auditctl -l | grep identity
+ 
+ #Edit or create a file in the /etc/audit/rules.d/ directory ending in .rules
+ vi /etc/audit/rules.d/identity.rules
+#and add the following lines:
+#-w /etc/group -p wa -k identity
+#-w /etc/passwd -p wa -k identity
+#-w /etc/gshadow -p wa -k identity
+#-w /etc/shadow -p wa -k identity
+#-w /etc/security/opasswd -p wa -k identity
+
+#4.1.5 Ensure events that modify the system's network environment are collected (Automated)
+#On a 64 bit system run the following commands:
+ grep system-locale /etc/audit/rules.d/*.rules
+ auditctl -l | grep system-locale
+#For 64 bit systems Edit or create a file in the /etc/audit/rules.d/ directory ending in .rules
+ vi /etc/audit/rules.d/system_local.rules
+#and add the following lines:
+#-a always,exit -F arch=b64 -S sethostname -S setdomainname -k system-locale
+#-a always,exit -F arch=b32 -S sethostname -S setdomainname -k system-locale
+#-w /etc/issue -p wa -k system-locale
+#-w /etc/issue.net -p wa -k system-locale
+#-w /etc/hosts -p wa -k system-locale
+#-w /etc/sysconfig/network -p wa -k system-locale
+
+#4.1.6 Ensure events that modify the system's Mandatory Access Controls are collected (Automated)
+Run the following commands:
+grep MAC-policy /etc/audit/rules.d/*.rules
+ auditctl -l | grep MAC-policy
+ 
+ #Edit or create a file in the /etc/audit/rules.d/ directory ending in .rules
+ vi /etc/audit/rules.d/MAC_policy.rules
+#and add the following lines:
+#-w /etc/selinux/ -p wa -k MAC-policy
+#-w /usr/share/selinux/ -p wa -k MAC-policy
+
+#4.1.7 Ensure login and logout events are collected (Automated)
+#Run the following commands:
+ grep logins /etc/audit/rules.d/*.rules
+ auditctl -l | grep logins
+#Edit or create a file in the /etc/audit/rules.d/ directory ending in .rules
+ vi /etc/audit/rules.d/logins.rules
+#and add the following lines:
+#-w /var/log/faillog -p wa -k logins
+#-w /var/log/lastlog -p wa -k logins
+#-w /var/log/tallylog -p wa -k logins
+
+#4.1.8 Ensure session initiation information is collected (Automated)
+#Run the following commands: Run the following command and verify rules are in a .rules file:
+ grep -E '(session|logins)' /etc/audit/rules.d/*.rules
+
+#Run the following command and verify the rules are in the running auditd config:
+auditctl -l | grep -E '(session|logins)'
+
+#Edit or create a file in the /etc/audit/rules.d/ directory ending in .rules
+ vi /etc/audit/rules.d/session.rules
+#and add the following lines:
+#-w /var/run/utmp -p wa -k session
+#-w /var/log/wtmp -p wa -k logins
+#-w /var/log/btmp -p wa -k logins
+#4.1.9 Ensure discretionary access control permission modification events are collected (Automated)
+#On a 64 bit system run the following commands
+#Run the following command and verify rules are in a .rules file:
+ grep perm_mod /etc/audit/rules.d/*.rules
+ #Run the following command and verify the rules are in the running auditd config:
+ auditctl -l | grep auditctl -l | grep perm_mod
+
+ #For 64 bit systems Edit or create a file in the /etc/audit/rules.d/ directory ending in .rules
+ vi /etc/audit/rules.d/perm_mod.rules
+#and add the following lines:
+# -a always,exit -F arch=b64 -S chmod -S fchmod -S fchmodat -F auid>=1000 -F
+auid!=4294967295 -k perm_mod
+-a always,exit -F arch=b32 -S chmod -S fchmod -S fchmodat -F auid>=1000 -F
+auid!=4294967295 -k perm_mod
+-a always,exit -F arch=b64 -S chown -S fchown -S fchownat -S lchown -F
+auid>=1000 -F auid!=4294967295 -k perm_mod
+-a always,exit -F arch=b32 -S chown -S fchown -S fchownat -S lchown -F
+auid>=1000 -F auid!=4294967295 -k perm_mod
+-a always,exit -F arch=b64 -S setxattr -S lsetxattr -S fsetxattr -S
+removexattr -S lremovexattr -S fremovexattr -F auid>=1000 -F auid!=4294967295
+-k perm_mod
+-a always,exit -F arch=b32 -S setxattr -S lsetxattr -S fsetxattr -S
+removexattr -S lremovexattr -S fremovexattr -F auid>=1000 -F auid!=4294967295
+-k perm_mod #
+
+#4.1.10 Ensure unsuccessful unauthorized file access attempts are collected (Automated)
+#On a 64 bit system run the following commands:
+Run the following command and verify rules are in a .rules file: #
+ grep access /etc/audit/rules.d/*.rules
+ 
+ #For 64 bit systems Edit or create a file in the /etc/audit/rules.d/ directory ending in.rules
+ vi /etc/audit/rules.d/access.rules
+#and add the following lines:
+#-a always,exit -F arch=b64 -S creat -S open -S openat -S truncate -S
+ftruncate -F exit=-EACCES -F auid>=1000 -F auid!=4294967295 -k access
+-a always,exit -F arch=b32 -S creat -S open -S openat -S truncate -S
+ftruncate -F exit=-EACCES -F auid>=1000 -F auid!=4294967295 -k access
+-a always,exit -F arch=b64 -S creat -S open -S openat -S truncate -S
+ftruncate -F exit=-EPERM -F auid>=1000 -F auid!=4294967295 -k access
+-a always,exit -F arch=b32 -S creat -S open -S openat -S truncate -S
+ftruncate -F exit=-EPERM -F auid>=1000 -F auid!=4294967295 -k access#
+
+#4.1.11 Ensure use of privileged commands is collected (Automated)
+#Monitor privileged programs (those that have the setuid and/or setgid bit set on execution) to determine if unprivileged users are running these commands.
+
+#Run the following command replacing <partition> with a list of partitions where programs can be executed from on your system:
+ find <partition> -xdev \( -perm -4000 -o -perm -2000 \) -type f | awk
+'{print "-a always,exit -F path=" $1 " -F perm=x -F auid>='"$(awk
+'/^\s*UID_MIN/{print $2}' /etc/login.defs)"' -F auid!=4294967295 -k
+privileged" }'
+
+#Edit or create a file in the /etc/audit/rules.d/ directory ending in .rules and add all resulting lines to the file.
+ vi /etc/audit/rules.d/privileged.rules
+ #find / -xdev \( -perm -4000 -o -perm -2000 \) -type f | awk '{print "-a
+always,exit -F path=" $1 " -F perm=x -F auid>='"$(awk '/^\s*UID_MIN/{print
+$2}' /etc/login.defs)"' -F auid!=4294967295 -k privileged" }' >>
+/etc/audit/rules.d/privileged.rules#
+
+#4.1.12 Ensure successful file system mounts are collected (Automated)
+
+
+
+#
+   
  
 
 
