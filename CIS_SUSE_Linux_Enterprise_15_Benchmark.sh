@@ -2001,9 +2001,21 @@ $2}' /etc/login.defs)"' -F auid!=4294967295 -k privileged" }' >>
 #Monitor the use of the mount system call. The mount (and umount ) system call controls the
 mounting and unmounting of file systems.
 
-#On a 64 bit system run the following commands:
-Run the following command and verify rules are in a .rules file:
-# grep mounts /etc/audit/rules.d/*.rules
+ #On a 64 bit system run the following commands:Run the following command and verify rules are in a .rules file:
+ grep mounts /etc/audit/rules.d/*.rules
+ #Run the following command and verify the rules are in the running auditd config:
+# auditctl -l | grep mounts
+ For 64 bit systems Edit or create a file in the /etc/audit/rules.d/ directory ending in.rules
+ vi /etc/audit/rules.d/mounts.rules
+#and add the following lines:
+#-a always,exit -F arch=b64 -S mount -F auid>=1000 -F auid!=4294967295 -k
+mounts
+-a always,exit -F arch=b32 -S mount -F auid>=1000 -F auid!=4294967295 -k
+mount#
+
+#
+
+
 
    
  
