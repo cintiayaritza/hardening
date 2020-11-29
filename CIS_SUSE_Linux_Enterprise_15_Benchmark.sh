@@ -1998,10 +1998,13 @@ $2}' /etc/login.defs)"' -F auid!=4294967295 -k privileged" }' >>
 /etc/audit/rules.d/privileged.rules#
 
 #4.1.12 Ensure successful file system mounts are collected (Automated)
+#Monitor the use of the mount system call. The mount (and umount ) system call controls the
+mounting and unmounting of file systems.
 
+#On a 64 bit system run the following commands:
+Run the following command and verify rules are in a .rules file:
+# grep mounts /etc/audit/rules.d/*.rules
 
-
-#
    
  
 
