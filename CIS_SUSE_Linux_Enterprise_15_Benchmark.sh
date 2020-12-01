@@ -1993,27 +1993,109 @@ privileged" }'
 #Edit or create a file in the /etc/audit/rules.d/ directory ending in .rules and add all resulting lines to the file.
  vi /etc/audit/rules.d/privileged.rules
  #find / -xdev \( -perm -4000 -o -perm -2000 \) -type f | awk '{print "-a
-always,exit -F path=" $1 " -F perm=x -F auid>='"$(awk '/^\s*UID_MIN/{print
-$2}' /etc/login.defs)"' -F auid!=4294967295 -k privileged" }' >>
-/etc/audit/rules.d/privileged.rules#
+#always,exit -F path=" $1 " -F perm=x -F auid>='"$(awk '/^\s*UID_MIN/{print
+#$2}' /etc/login.defs)"' -F auid!=4294967295 -k privileged" }' >>
+#/etc/audit/rules.d/privileged.rules
 
 #4.1.12 Ensure successful file system mounts are collected (Automated)
-#Monitor the use of the mount system call. The mount (and umount ) system call controls the
-mounting and unmounting of file systems.
+#Monitor the use of the mount system call. The mount (and umount ) system call controls the mounting and unmounting of file systems.
 
  #On a 64 bit system run the following commands:Run the following command and verify rules are in a .rules file:
  grep mounts /etc/audit/rules.d/*.rules
  #Run the following command and verify the rules are in the running auditd config:
-# auditctl -l | grep mounts
- For 64 bit systems Edit or create a file in the /etc/audit/rules.d/ directory ending in.rules
+ auditctl -l | grep mounts
+# For 64 bit systems Edit or create a file in the /etc/audit/rules.d/ directory ending in.rules
  vi /etc/audit/rules.d/mounts.rules
 #and add the following lines:
-#-a always,exit -F arch=b64 -S mount -F auid>=1000 -F auid!=4294967295 -k
-mounts
--a always,exit -F arch=b32 -S mount -F auid>=1000 -F auid!=4294967295 -k
-mount#
+#-a always,exit -F arch=b64 -S mount -F auid>=1000 -F auid!=4294967295 -k mounts
+#-a always,exit -F arch=b32 -S mount -F auid>=1000 -F auid!=4294967295 -k mount
 
-#
+#4.1.13 Ensure file deletion events by users are collected (Automated)
+#Monitor the use of system calls associated with the deletion or renaming of files and file
+#attributes. This configuration statement sets up monitoring for following system calls and
+#tags them with the identifier "delete":
+
+#On a 64 bit system run the following commands:
+#Run the following command and verify rules are in a .rules file:
+grep delete /etc/audit/rules.d/*.rules
+
+#Run the following command and verify the rules are in the running auditd config:
+ auditctl -l | grep delete
+ 
+ #For 64 bit systems Edit or create a file in the /etc/audit/rules.d/ directory ending in .rules
+ vi /etc/audit/rules.d/deletion.rules
+#and add the following lines:
+#-a always,exit -F arch=b64 -S unlink -S unlinkat -S rename -S renameat -F
+#auid>=1000 -F auid!=4294967295 -k delete
+#-a always,exit -F arch=b32 -S unlink -S unlinkat -S rename -S renameat -F
+#auid>=1000 -F auid!=4294967295 -k delete
+
+#4.1.14 Ensure changes to system administration scope (sudoers) is
+collected (Automated)
+#Run the following commands:
+#Run the following command and verify rules are in a .rules file:
+ grep scope /etc/audit/rules.d/*.rules
+ 
+ #Run the following command and verify the rules are in the running auditd config:
+ auditctl -l | grep scope
+ 
+ #Edit or create a file in the /etc/audit/rules.d/ directory ending in .rules
+ vi /etc/audit/rules.d/scope.rules
+#and add the following lines:
+#-w /etc/sudoers -p wa -k scope
+#-w /etc/sudoers.d/ -p wa -k scope
+
+#4.1.15 Ensure system administrator actions (sudolog) are collected (Automated)
+#Monitor the sudo log file. The sudo log file is configured in /etc/sudoers or a file in /etc/sudoers.d.
+
+#Run the following commands:
+ grep -E "^\s*-w\s+$(grep -r logfile /etc/sudoers* | sed -e
+'s/.*logfile=//;s/,? .*//')\s+-p\s+wa\s+-k\s+actions"
+/etc/audit/rules.d/*.rules
+
+auditctl -l | grep actions
+
+#Edit or create a file in the /etc/audit/rules.d/ directory ending in .rules and add the
+ vi /etc/audit/rules.d/actions.rules
+#and add the following line:
+#-w /var/log/sudo.log -p wa -k actions
+
+#4.1.16 Ensure kernel module loading and unloading is collected (Automated)
+#On a 64 bit system run the following commands:
+#Run the following command and verify rules are in a .rules file:
+ grep modules /etc/audit/rules.d/*.rules
+
+#Run the following command and verify the rules are in the running auditd config:
+ auditctl -l | grep modules
+
+#For 64 bit systems Edit or create a file in the /etc/audit/rules.d/ directory ending in .rules
+ vi /etc/audit/rules.d/modules.rules
+#and add the following lines:
+#-w /sbin/insmod -p x -k modules
+#-w /sbin/rmmod -p x -k modules
+#-w /sbin/modprobe -p x -k modules
+#-a always,exit -F arch=b64 -S init_module -S delete_module -k modules
+
+#4.1.17 Ensure the audit configuration is immutable (Automated)
+#Run the following command and verify output matches:
+ grep "^\s*[^#]" /etc/audit/rules.d/*.rules | tail -1 -e 2
+ 
+ #Edit or create the file /etc/audit/rules.d/99-finalize.rules and add the following line at the end of the file:
+ vi /etc/audit/rules.d/99-finalize.rules
+#-e 2
+
+#4.2 Configure Logging
+#Logging services should be configured to prevent information leaks and to aggregate logs
+#on a remote server so that they can be reviewed in the event of a system compromise and
+#ease log analysis.
+
+#4.2.1 Configure rsyslog
+#The rsyslog software is recommended as a replacement for thesyslogd daemon and
+#provides improvements over syslogd, such as connection-oriented (i.e. TCP) transmission
+#of logs, the option to log to database formats, and the encryption of log data en route to a
+#central logging server.
+
+
 
 
 
