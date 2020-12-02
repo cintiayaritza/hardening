@@ -2095,15 +2095,138 @@ auditctl -l | grep actions
 #of logs, the option to log to database formats, and the encryption of log data en route to a
 #central logging server.
 
+#4.2.1.1 Ensure rsyslog is installed (Automated)
+#The rsyslog software is a recommended replacement to the original syslogd daemon.
+#Run the following command to Verify rsyslog is installed:
+ rpm -q rsyslog
+ 
+ #Run the following command to install rsyslog:
+zypper install rsyslog
+#4.2.1.2 Ensure rsyslog Service is enabled and running (Automated)
+#Run one of the following commands to verify rsyslog is enabled:
+ systemctl is-enabled rsyslog
 
+#Run the following command to verify that rsyslog is running:
+ systemctl status rsyslog | grep 'active (running) '
+#Run the following command to enable and start rsyslog:
+ systemctl --now enable rsyslog
 
+#4.2.1.3 Ensure rsyslog default file permissions configured (Automated)
+#rsyslog will create logfiles that do not already exist on the system. This setting controls what permissions will be applied to these newly created files
+#Run the following command and verify that $FileCreateMode is 0640 or more restrictive:
+ grep ^\$FileCreateMode /etc/rsyslog.conf /etc/rsyslog.d/*.conf
 
+#Edit the /etc/rsyslog.conf and /etc/rsyslog.d/*.conf files and set $FileCreateMode to 0640 or more restrictive
+echo "$FileCreateMode 0640" < /etc/rsyslog.conf
+echo "$FileCreateMode 0640" << /etc/rsyslog.d/*.conf
 
+#4.2.1.4 Ensure logging is configured (Manual)
+#The /etc/rsyslog.conf and /etc/rsyslog.d/*.conf files specifies rules for logging and which files are to be used to log certain classes of messages.
+#Review the contents of the /etc/rsyslog.conf and /etc/rsyslog.d/*.conf files to ensure appropriate logging is set. In addition, run the following command and verify that the log
+#files are logging information:
+ ls -l /var/log/
+ 
+ #Edit the following lines in the /etc/rsyslog.conf and /etc/rsyslog.d/*.conf files as appropriate for your environment:
+vi /etc/rsyslog.conf
+
+# Define templates before the rules that use them
+### Per-Host Templates for Remote Systems ###
+template(name="TmplAuthpriv" type="list") {
+    constant(value="/var/log/remote/auth/")
+    property(name="hostname")
+    constant(value="/")
+    property(name="programname" SecurePath="replace")
+    constant(value=".log")
+    }
+
+template(name="TmplMsg" type="list") {
+    constant(value="/var/log/remote/msg/")
+    property(name="hostname")
+    constant(value="/")
+    property(name="programname" SecurePath="replace")
+    constant(value=".log")
+    }
+
+# Provides TCP syslog reception
+module(load="imtcp")
+# Adding this ruleset to process remote messages
+ruleset(name="remote1"){
+     authpriv.*   action(type="omfile" DynaFile="TmplAuthpriv")
+      *.info;mail.none;authpriv.none;cron.none
+action(type="omfile" DynaFile="TmplMsg")
+}
+
+input(type="imtcp" port="30514" ruleset="remote1")
+ 
+#Run the following command to reload the rsyslogd configuration:
+ systemctl restart rsyslog
+ 
+ #4.2.1.5 Ensure rsyslog is configured to send logs to a remote log host (Automated)
+ #The rsyslog utility supports the ability to send logs it gathers to a remote log host running 
+ #syslogd(8) or to receive messages from remote hosts, reducing administrative overhead.
+ #Review the /etc/rsyslog.conf and /etc/rsyslog.d/*.conf files and verify that logs aresent to a central host (where loghost.example.com is the name of your central log host):
+ grep "^*.*[^I][^I]*@" /etc/rsyslog.conf /etc/rsyslog.d/*.conf
+ 
+ #Edit the /etc/rsyslog.conf and /etc/rsyslog.d/*.conf files and add the following line (where loghost.example.com is the name of your central log host).
+ echo "*.* @@loghost.example.com" > /etc/rsyslog.conf
+ 
+ #Run the following command to reload the rsyslogd configuration:
+ systemctl restart rsyslog
+ 
+ #4.2.1.6 Ensure remote rsyslog messages are only accepted on designated log hosts. (Manual)
+ #Run the following commands and verify the resulting lines are uncommitted on designated log hosts and commented or removed on all others:
+grep '$ModLoad imtcp' /etc/rsyslog.conf /etc/rsyslog.d/*.conf
+ grep '$InputTCPServerRun' /etc/rsyslog.conf /etc/rsyslog.d/*.conf
+ 
+ #For hosts that are designated as log hosts, edit the /etc/rsyslog.conf file and uncomment or add the following lines
    
+echo "$ModLoad imtcp
+$InputTCPServerRun 514" > /etc/rsyslog.conf /etc/rsyslog.d/*.conf
+
+#Run the following command to reload the rsyslogd configuration:
+systemctl restart rsyslog
+
+ #4.2.2 Configure journald
+ #4.2.2.1 Ensure journald is configured to send logs to rsyslog (Automated)
+#Data from journald may be stored in volatile memory or persisted locally on the server.
+#Utilities exist to accept remote export of journald logs, however, use of the rsyslog service
+#provides a consistent means of log collection and export.
+
+#Review /etc/systemd/journald.conf and verify that logs are forwarded to syslog
+ grep -E ^\s*ForwardToSyslog /etc/systemd/journald.conf
  
+ #Edit the /etc/systemd/journald.conf file and add the following line:
+echo "ForwardToSyslog=yes" > /etc/systemd/journald.conf
+
+#4.2.2.2 Ensure journald is configured to compress large log files (Automated)
+#Review /etc/systemd/journald.conf and verify that large files will be compressed:
+ grep -E ^\s*Compress /etc/systemd/journald.conf
+ 
+ #Edit the /etc/systemd/journald.conf file and add the following line:
+echo "Compress=yes" > /etc/systemd/journald.conf
+
+#4.2.2.3 Ensure journald is configured to write logfiles to persistent disk (Automated)
+#Review /etc/systemd/journald.conf and verify that logs are persisted to disk:
+ grep -E ^\s*Storage /etc/systemd/journald.conf
+ 
+ #Edit the /etc/systemd/journald.conf file and add the following line:
+echo "Storage=persistent" > /etc/systemd/journald.conf
+
+#4.2.3 Ensure permissions on all logfiles are configured (Automated)
+#Log files stored in /var/log/ contain logged information from many services on the system, or on log hosts others as well
+
+#Run the following command and verify that other has no permissions on any files and group does not have write or execute permissions on any files:
+find /var/log -type f -perm /g+wx,o+rwx -exec ls -l {} \;
+
+#Run the following commands to set permissions on all existing log files:
+find /var/log -type f -exec chmod g-wx,o-rwx "{}" + -o -type d -exec chmod g-wx,o-rwx "{}"
+
+#
 
 
- 
+
+
+
 
 
 
