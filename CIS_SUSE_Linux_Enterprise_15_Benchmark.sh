@@ -2221,12 +2221,140 @@ find /var/log -type f -perm /g+wx,o+rwx -exec ls -l {} \;
 #Run the following commands to set permissions on all existing log files:
 find /var/log -type f -exec chmod g-wx,o-rwx "{}" + -o -type d -exec chmod g-wx,o-rwx "{}"
 
-#
+#5 Access, Authentication and Authorization
+#5.1 Configure time-based job schedulers
+#5.1.1 Ensure cron daemonis enabled and running (Automated)
+#The crondaemon is used to execute batch jobs on the system.f cronis installed:Run the following commands to verify cronis enabled and running:
+systemctl is-enabled cron
+systemctl status cron | grep 'Active: active (running) '
+#Run the following command to enable and start cron:
+ systemctl --now enable cron 
+ #OR Run the following command to remove cron:
+ zypper remove cronie
+#5.1.2 Ensure permissions on /etc/crontab are configured (Automated)
+#f cronis installed:Run the following command and verify Uidand Gidare both 0/rootand Accessdoes not grant permissions to groupor other
+stat /etc/crontab
 
+#Run the following commands to set ownership and permissions on /etc/crontab:
+chown root:root /etc/crontab
+chmod u-x,og-rwx /etc/crontab
+#OR Run the following command to remove cron:
+zypper remove cronie
 
+#5.1.3 Ensure permissions on /etc/cron.hourly are configured (Automated)
+#if cronis installed:Run the following command and verify Uidand Gidare both 0/rootand Accessdoes not grant permissions to groupor other:
+stat /etc/cron.hourly/
 
+#Run the following commands to set ownership and permissions on the /etc/cron.hourly/directory:
+ chown root:root /etc/cron.hourly/
+ chmod og-rwx /etc/cron.hourly/
+ #oR Run the following command to remove cron
+  zypper remove cronie
 
+#5.1.4 Ensure permissions on /etc/cron.daily are configured (Automated)
+#If cronis installed:Run the following command and verify Uidand Gidare both 0/rootand Accessdoes not grant permissions to groupor other:
+stat /etc/cron.daily/
+#Run the following commands to set ownership and permissions on /etc/cron.dailydirectory:
+chown root:root /etc/cron.daily 
+chmod og-rwx /etc/cron.daily
+#OR Run the following command to remove cron:
+zypper remove cronie
+#5.1.5 Ensure permissions on /etc/cron.weekly are configured (Automated)
+#if cronis installedRun the following command and verify Uidand Gidare both 0/rootand Accessdoes not grant permissions to groupor other:
+ stat /etc/cron.weekly
+ #Run the following commands to set ownership and permissions on /etc/cron.weekly/directory:
+  chown root:root /etc/cron.weekly/
+  chmod og-rwx /etc/cron.weekly/
+  #OR Run the following command to remove cron:
+  zypper remove cronie
+  
+  #5.1.6 Ensure permissions on /etc/cron.monthly are configured (Automated)
+  #lf cronis installed:Run the following command and verify Uidand Gidare both 0/rootand Accessdoes not grant permissions to groupor other:
+   stat /etc/cron.monthly/
+   #Run the following commands to set ownership and permissions on /etc/cron.monthlydirectory:
+   chown root:root /etc/cron.monthly
+   chmod og-rwx /etc/cron.monthly
+   #OR Run the following command to remove cron
+   zypper remove cronie
 
+#5.1.7 Ensure permissions on /etc/cron.d are configured (Automated)
+#lf cronis installed:Run the following command and verify Uidand Gidare both 0/rootand Accessdoes not grant permissions to groupor other:
+stat /etc/cron.d
+#Run the following commands to set ownership and permissions on /etc/cron.ddirectory:
+chown root:root /etc/cron.d 
+chmod og-rwx /etc/cron.d
+
+#5.1.8 Ensure cron is restricted to authorized users (Automated)
+#lf cronis installed:Run the following command and verify /etc/cron.denydoes not exist:
+ stat /etc/cron.deny 
+#Run the following command and verify Uidand Gidare both 0/rootand Accessdoes not grant permissions to groupor otherfor /etc/cron.allow:
+stat /etc/cron.allow
+#Run the following command to remove /etc/cron.deny:
+rm /etc/cron.deny
+#Run the following command to create /etc/cron.allow
+ touch /etc/cron.allow
+ #Run the following commands to set the owner and permissions on /etc/cron.allow:
+  chown root:root /etc/cron.allow
+   chmod u-x,og-rwx /etc/cron.allow
+   
+   #5.1.9 Ensure at is restricted to authorized users (Automated)
+   Run the following command and verify /etc/at.denydoes not exist:
+   stat /etc/at.deny
+   #Run the following command and verify Uidand Gidare both 0/rootand Accessdoes not grant permissions to groupor otherfor /etc/at.allow:
+    stat /etc/at.allow
+    #Run the following command to remove /etc/at.deny
+    rm /etc/at.deny
+    #Run the following command to create /etc/at.allow
+    touch /etc/at.allow
+    #run the following commands to set the owner and permissions on /etc/at.allow:
+     chown root:root /etc/at.allow
+     chmod u-x,og-rwx /etc/at.allow
+     
+     
+     #5.2 Configure SSH Server
+      #Run the following command to reload the sshd configuration:
+      systemctl reload sshd
+      #5.2.1 Ensure permissions on /etc/ssh/sshd_config are configured (Automated)
+      #Run the following command and verify Uidand Gidare both 0/rootand Accessdoes not grant permissions togroupor other:
+      stat /etc/ssh/sshd_config
+      #Run the following commands to set ownership and permissions on /etc/ssh/sshd_config:
+      chown root:root /etc/ssh/sshd_config
+      chmod og-rwx /etc/ssh/sshd_config
+      
+      #5.2.2 Ensure permissions on SSH private host key files are configured (Automated)
+      #Run the following command and verify either:Uid is 0/root and Gid is /ssh_keys and permissions 0640or more restrictive:ORUid is 0/root and Gid is 0/root and permissions are 0600or more restrictive:
+       find /etc/ssh -xdev -type f -name 'ssh_host_*_key' -exec stat {} \;
+       
+       #Run the following commands to set permissions, ownership, and group on the private SSH host key files
+       find /etc/ssh -xdev -type f -name 'ssh_host_*_key' -exec chmod u-x,g-wx,o-rwx {} \;
+       find /etc/ssh -xdev -type f -name 'ssh_host_*_key' -exec chown root:ssh_keys {} \;
+       
+       #5.2.3 Ensure permissions on SSH public host key files are configured (Automated)
+       #Run the following command and verify Access does not grant write or execute permissions to group or other for all returned files:
+       find /etc/ssh -xdev -type f -name 'ssh_host_*_key.pub' -exec stat {} \;
+       #Run the following commands to set permissions and ownership on the SSH host public key files
+       find /etc/ssh -xdev -type f -name 'ssh_host_*_key.pub' -exec chmod u-x,go-wx {} \;
+       find /etc/ssh -xdev -type f -name 'ssh_host_*_key.pub' -exec chown root:root {} \;
+       #5.2.4 Ensure SSH access is limited (Automated)
+       #run the following command:
+       sshd -T | grep -E '^\s*(allow|deny)(users|groups)\s+\S+'
+       #Edit the /etc/ssh/sshd_configfile to set one or more of the parameter as follows:
+       vi /etc/ssh/sshd_config
+       
+       #5.2.5 Ensure SSH LogLevel is appropriate (Automated)
+       #Run the following command and verify that output matches:
+       sshd -T | grep loglevel
+       
+       #Edit the /etc/ssh/sshd_configfile to set the parameter as follows:LogLevel VERBOSE
+       echo "logLevel VERBOSE" >etc/ssh/sshd_config
+       
+       #5.2.6 Ensure SSH X11 forwarding is disabled (Automated)
+       #Run the following command and verify that output matches:
+       sshd -T | grep -i x11forwarding
+#Edit the /etc/ssh/sshd_config file to set the parameter as follows:
+echo "X11Forwarding no" >etc/ssh/sshd_config
+
+#5.2.7 Ensure SSH MaxAuthTries is set to 4 or less (Automated)
 
 
 
