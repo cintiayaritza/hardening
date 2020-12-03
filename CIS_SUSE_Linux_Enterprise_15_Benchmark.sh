@@ -2593,6 +2593,90 @@ fi
  else
  else
  if [ ! -h "$dir/.forward" -a -f "$dir/.forward" ] ; thenecho ".forward file $dir/.forward exists"
+   fi
+ fi
+ done
+ #6.2.10 Ensure no users have .netrc files (Automated)
+ #!/bin/bash
+ awk -F: '($1 !~ /^(root|halt|sync|shutdown)$/ && $7 != "'"$(which nologin)"'" && $7 != "/bin/false" && $7 != "/usr/bin/false") { print $1 " " $6 }' /etc/passwd | while readuser dir; do
+ if [ ! -d "$dir" ]; thenecho "The home directory ($dir) of user $user does not exist."
+ else
+ if [ ! -h "$dir/.netrc" -a -f "$dir/.netrc" ]; thenecho ".netrc file $dir/.netrc exists"
+   fi
+  fin
+  done
+  
+  #6.2.11 Ensure users' .netrc Files are not group or world accessible (Automated)
+  #!/bin/bash
+  awk -F: '($1 !~ /^(root|halt|sync|shutdown)$/ && $7 != "'"$(which nologin)"'" && $7 != "/bin/false" && $7 != "/usr/bin/false") { print $1 " " $6 }' /etc/passwd | while read user dir; do
+  if [ ! -d "$dir" ]; thenecho "The home directory($dir) of user $user does not exist."
+  else
+  for file in $dir/.netrc; do
+  if [ ! -h "$file" -a -f "$file" ]; then
+  fileperm=$(ls -ld $file | cut -f1 -d" ")
+  if [ $(echo $fileperm | cut -c5)  != "-" ]; then echo "Group Readset on $file"
+  fi
+  if [ $(echo $fileperm | cut -c6)  != "-" ]; then 
+  echo "Group Write set on $file"fiif [ $(echo $fileperm | cut -c7)  != "-" ]; then echo "Group Execute set on $file"
+  fi 
+  if [ $(echo $fileperm | cut -c8)  != "-" ]; then echo "Other Read set on $file"
+  fi
+  if [ $(echo $fileperm | cut -c9)  != "-" ]; thenecho "Other Write set on $file"
+  fi
+  if [ $(echo $fileperm | cut -c10)  !="-" ]; thenecho "Other Execute set on $file"
+  fi
+   fi 
+   done
+   fi
+    done
+    
+    #6.2.12 Ensure no users have .rhosts files (Automated)
+    #!/bin/bash
+    awk -F: '($1 !~ /^(root|halt|sync|shutdown)$/ && $7 != "'"$(which nologin)"'" && $7 != "/bin/false" && $7 != "/usr/bin/false") { print $1 " " $6 }' /etc/passwd | while read user dir; do
+    if [ ! -d "$dir" ]; thenecho "The home directory ($dir) of user $user does not exist."
+    else
+    for file in $dir/.rhosts; doif [ ! -h "$file" -a -e "$file" ]; thenecho ".rhosts file in $dir"
+        fi
+        done
+     fi
+     done
+     
+     #6.2.13 Ensure all groups in /etc/passwd exist in /etc/group (Automated)
+     #!/bin/bash
+     for i in $(cut -s -d: -f4 /etc/passwd | sort -u ); dogrep -q -P "^.*?:[^:]*:$i:" /etc/group
+     if [ $? -ne 0 ]; thenecho "Group $i is referenced by /etc/passwd but does not exist in 
+     /etc/group"
+     fi 
+     done
+     
+     #6.2.14 Ensure no duplicate UIDs exist (Automated)
+     #!/bin/bash
+     cut -f3 -d":" /etc/passwd | sort -n | uniq -c | while read x ; do[ -z "$x" ] && breakset -$x
+     if [ $1 -gt 1 ]; thenusers=$(awk -F: '($3 == n) { print $1 }' n=$2 /etc/passwd | xargs)echo "Duplicate UID ($2): $users"
+     fi
+     done
+     
+     #6.2.15 Ensure no duplicate GIDs exist (Automated)
+     #!/bin/bash 
+     cut -d: -f3 /etc/group | sort | uniq -d | while read x ; doecho "Duplicate GID ($x) in /etc/group"
+     done
+     
+     #6.2.16 Ensure no duplicate user names exist (Automated)
+          #!/bin/bash 
+         cut -d: -f1 /etc/passwd | sort | uniq -d | while read xdo echo "Duplicate login name ${x} in /etc/passwd"
+	 done
+	 
+	 #6.2.17 Ensure no duplicate group names exist (Automated)
+	 #!/bin/bash 
+	 cut -d: -f1 /etc/group | sort | uniq -d | while read xdo echo "Duplicate group name ${x} in /etc/group"
+	 done
+	 
+	 #6.2.18 Ensure shadow group is empty (Automated)
+	 grep ^shadow:[^:]*:[^:]*:[^:]+ /etc/group
+	 awk -F: '($4 == "<shadow-gid>") { print }' /etc/passwd
+	 
+	 
+    
   
 
 
