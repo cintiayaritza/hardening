@@ -2430,8 +2430,89 @@ vi /etc/ssh/sshd_config
 #UsePAM yes
 
 #5.2.20 Ensure SSH AllowTcpForwarding is disabled (Automated)
+#Run the following command and verify that output matches:
+sshd -T | grep -i allowtcpforwarding
+#Edit the /etc/ssh/sshd_config file to set the parameter as follows:
+vi  /etc/ssh/sshd_config 
+#AllowTcpForwarding no
+#5.2.21 Ensure SSH MaxStartups is configured (Automated)
+#Run the following command and verify that output MaxStartupsis 10:30:60or matches site policy:
+sshd -T | grep -i maxstartups
+#Edit the /etc/ssh/sshd_configfile to set the parameter as follows:
+vi etc/ssh/sshd_config
+#maxstartups 10:30:60
 
+#5.2.22 Ensure SSH MaxSessions is limited (Automated)
+#Run the following command and verify that output MaxSessionsis 10 or less, or matches site policy:
+sshd -T | grep -i maxsessions
+#Edit the /etc/ssh/sshd_configfile to set the parameter as follows:
+vi /etc/ssh/sshd_config
+#MaxSessions 10
 
+#5.3 Configure PAM
+#5.3.1 Ensure password creation requirements are configured (Automated)
+Run the following command:
+pam-config -a --cracklib-minlen=14 --cracklib-retry=3 --cracklib-lcredit=-1 --cracklib-ucredit=-1 --cracklib-dcredit=-1 --cracklib-ocredit=-1 --cracklib
+
+#5.3.2 Ensure lockout for failed password attempts is configured (Automated)
+#Modify the deny=and unlock_time=parameters to conform to local site policy, Not to be greater than deny=5:Edit the file /etc/pam.d/common-authand add the following line:
+vi etc/pam.d/common-authand
+#auth        required      pam_tally2.so deny=5 onerr=fail unlock_time=900
+
+#5.3.3 Ensure password reuse is limited (Automated)
+#run the following command:
+pam-config -a --pwhistory --pwhistory-remember=5
+
+#5.4 User Accounts and Environment
+#5.4.1 Set Shadow Password Suite Parameters
+#5.4.1.1 Ensure password hashing algorithm is SHA-512 (Automated)
+#Edit the /etc/login.defsfile and modify ENCRYPT_METHOD to SHA512:
+vi /etc/login.defsfile
+#ENCRYPT_METHOD sha512
+
+#5.4.1.2 Ensure password expiration is 365 days or less (Automated)
+#run the following command and verify PASS_MAX_DAYSconforms to site policy (no more than 365 days):
+grep ^\s*PASS_MAX_DAYS /etc/login.defs
+
+#5.4.1.3 Ensure minimum days between password changes is configured (Automated)
+grep -E ^[^:]+:[^\!*] /etc/shadow | cut -d: -f1,4
+
+#5.4.1.4 Ensure password expiration warning days is 7 or more (Automated)
+grep -E ^[^:]+:[^\!*] /etc/shadow | cut -d: -f1,6
+
+#5.4.1.5 Ensure inactive password lock is 30 days or less (Automated)
+grep -E ^[^:]+:[^\!*] /etc/shadow | cut -d: -f1,7
+
+#5.4.1.6 Ensure all users last password change date is in the past (Automated)
+#!/bin/bash
+for usr in $(cut -d: -f1 /etc/shadow);
+do [[ $(chage --list $usr | grep '^Last password change' | cut -d: -f2) > $(date) ]] && 
+echo "$usr :$(chage --list $usr | grep '^Last password change' | cut -d: -f2)";
+done
+
+#5.4.2 Ensure system accounts are secured (Automated)
+#The following command will set all system accounts to a non login shell:
+awk -F: '($1!="root" && $1!="sync" && $1!="shutdown" && $1!="halt" && $1!~/^\+/ && $3<'"$(awk '/^\s*UID_MIN/{print $2}' /etc/login.defs)"' && $7!="'"$(which nologin)"'" && $7!="/bin/false" && $7!="/usr/bin/false") {print $1}' /etc/passwd | while read -r user; do usermod -s "$(which nologin)" "$user"; done
+#The following command will automatically lock not root system accounts:
+awk -F: '($1!="root" && $1!~/^\+/ && $3<'"$(awk '/^\s*UID_MIN/{print $2}' /etc/login.defs)"') {print $1}' /etc/passwd | xargs -I '{}' passwd -S '{}' | awk '($2!="L" && $2!="LK") {print $1}' | while read -r user; dousermod -L "$user"; done
+
+#5.4.3 Ensure default group for the root account is GID 0 (Automated)
+#Run the following command to set the rootuser default group to GID 0:
+usermod -g 0 root
+
+#5.4.4 Ensure default user shell timeout is configured (Automated)
+grep -PR '^\s*([^$#;]+\s+)*TMOUT=(9[0-9][1-9]|0+|[1-9]\d{3,})\b\s*(\S+\s*)*(\s+#.*)?$' /etc/profile* /etc/bashrc.bashrc*
+
+#5.4.5 Ensure default user umask is configured (Automated)
+grep -REi '^\s*UMASK\s+\s*(0[0-7][2-7]7|[0-7][2-7]7|u=(r?|w?|x?)(r?|w?|x?)(r?|w?|x?),g=(r?x?|x?r?),o=)\b' /etc/login.defs /etc/default/login /etc/profile* /etc/bash.bashrc*
+
+#5.5 Ensure root login is restricted to system console (Manual)
+cat /etc/securetty
+
+#5.6 Ensure access to the su command is restricted (Automated)
+sed -i '/pam_wheel.so/ s/#//' /etc/pam.d/su
+
+#
 
 #6 System Maintenance
 #6.1 System File Permissions
