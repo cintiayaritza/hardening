@@ -2429,6 +2429,9 @@ vi /etc/ssh/sshd_config
 vi /etc/ssh/sshd_config
 #UsePAM yes
 
+#5.2.20 Ensure SSH AllowTcpForwarding is disabled (Automated)
+
+
 
 #6 System Maintenance
 #6.1 System File Permissions
