@@ -2355,7 +2355,77 @@ rm /etc/cron.deny
 echo "X11Forwarding no" >etc/ssh/sshd_config
 
 #5.2.7 Ensure SSH MaxAuthTries is set to 4 or less (Automated)
+#run the following command and verify that output MaxAuthTriesis 4 or less:
+sshd -T | grep maxauthtries
+#Edit the /etc/ssh/sshd_configfile to set the parameter as follows:
+vi etc/ssh/sshd_config
 
+#5.2.8 Ensure SSH IgnoreRhosts is enabled (Automated)
+#edit the /etc/ssh/sshd_configfile to set the parameter as follows:
+vi /etc/ssh/sshd_config
+
+#5.2.9 Ensure SSH HostbasedAuthentication is disabled (Automated
+#Run the following command and verify that output matches:
+sshd -T | grep hostbasedauthentication
+#Edit the /etc/ssh/sshd_configfile to set the parameter as follows:
+vi etc/ssh/sshd_config
+
+#5.2.10 Ensure SSH root login is disabled (Automated)
+#Run the following command and verify that output matches:
+sshd -T | grep permitrootlogin
+#Edit the /etc/ssh/sshd_configfile to set the parameter as follows:
+vi etc/ssh/sshd_config
+
+#5.2.11 Ensure SSH PermitEmptyPasswords is disabled (Automated)
+#Run the following command and verify that output matches:
+sshd -T | grep permitemptypasswords
+#edit the /etc/ssh/sshd_configfile to set the parameter as follows:
+vi /etc/ssh/sshd_config
+
+#5.2.12 Ensure SSH PermitUserEnvironment is disabled (Automated)
+#un the following command and verify that output matches:
+sshd -T | grep permituserenvironment
+#Edit the /etc/ssh/sshd_configfile to set the parameter as follows:
+vi etc/ssh/sshd_config
+
+#5.2.13 Ensure only strong Ciphers are used (Automated)
+#Run the following command and verify that output does not contain any of the listed weak ciphers
+sshd -T | grep ciphers
+#Edit the /etc/ssh/sshd_configfile add/modify the Ciphersline to contain a comma separated list of the site approved ciphers
+vi /etc/ssh/sshd_config
+#Ciphers chacha20-poly1305@openssh.com,aes256-gcm@openssh.com,aes128-gcm@openssh.com,aes256-ctr,aes192-ctr,aes128-ctr
+
+#5.2.14 Ensure only strong MAC algorithms are used (Automated)
+#Run the following command and verify that output does not contain any of the listed weak MAC algorithms:
+sshd -T | grep -i "MACs"
+#edit the /etc/ssh/sshd_configfile and add/modify the MACs line to contain a comma separated list of the site approved MACs
+vi /etc/ssh/sshd_config
+#MACs hmac-sha2-512-etm@openssh.com,hmac-sha2-256-etm@openssh.com,hmac-sha2-512,hmac-sha2-256
+
+#5.2.15 Ensure only strong Key Exchange algorithms are used (Automated)
+#Edit the /etc/ssh/sshd_config file add/modify the KexAlgorithms line to contain a comma separatedlist of the site approved key exchange algorithms
+vi /etc/ssh/sshd_config
+#KexAlgorithms curve25519-sha256,curve25519-sha256@libssh.org,diffie-hellman-group14-sha256,diffie-hellman-group16-sha512,diffie-hellman-group18-sha512,ecdh-sha2-nistp521,ecdh-sha2-nistp384,ecdh-sha2-nistp256,diffie-hellman-group-exchange-sha256
+
+#5.2.16 Ensure SSH Idle Timeout Interval is configured (Automated)
+#Edit the /etc/ssh/sshd_configfile to set the parameters according to site policy. This should include ClientAliveIntervalbetween 1 and 300 and ClientAliveCountMaxof 3 or less
+vi /etc/ssh/sshd_config
+#ClientAliveInterval 300ClientAliveCountMax 3
+
+#5.2.17 Ensure SSH LoginGraceTime is set to one minute or less (Automated)
+#Edit the /etc/ssh/sshd_configfile to set the parameter as follows
+vi /etc/ssh/sshd_config
+#LoginGraceTime 60
+
+#5.2.18 Ensure SSH warning banner is configured (Automated)
+#Edit the /etc/ssh/sshd_configfile to set the parameter as follows
+vi /etc/ssh/sshd_config
+#Banner /etc/issue.net
+
+#5.2.19 Ensure SSH PAM is enabled (Automated)
+#Edit the /etc/ssh/sshd_configfile to set the parameter as follows:
+vi /etc/ssh/sshd_config
+#UsePAM yes
 
 
 
