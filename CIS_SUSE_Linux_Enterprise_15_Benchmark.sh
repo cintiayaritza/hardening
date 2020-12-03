@@ -2428,7 +2428,170 @@ vi /etc/ssh/sshd_config
 #UsePAM yes
 
 
+#6 System Maintenance
+#6.1 System File Permissions
+#6.1.1 Audit system file permissions (Manual)
+#Run the following command to review all installed packages. 
+rpm -Va --nomtime --nosize --nomd5 --nolinkto > <filename> | grep -vw c
 
+#6.1.2 Ensure permissions on /etc/passwd are configured (Automated)
+#Run the following command and verify Uidand Gidare both 0/rootand Accessis 644or more restrictive:
+stat /etc/passwd
+#Run the following commands to set owner, group, and permissions on /etc/passwd:
+chown root:root /etc/passwd
+chmod u-x,g-wx,o-wx /etc/passwd
+
+#6.1.3 Ensure permissions on /etc/shadow are configured (Automated)
+#Run the following command and verify Uid is 0/root, Gid is 0/rootor <gid> /shadow, and Access is 0640or more restrictive:
+stat /etc/shadow
+
+#Run the following commands to set owner, group, and permissions on /etc/shadow:
+chown root:root /etc/passwd
+chmod u-x,g-wx,o-wx /etc/passwd
+
+#6.1.4 Ensure permissions on /etc/group are configured (Automated)
+##Run the following command and verify Uid is 0/root, Gid is 0/rootor <gid> /group, and Access is 0640or more restrictive:
+stat /etc/group
+
+#Run the following commands to set owner, group, and permissions on /etc/group:
+chown root:root /etc/group
+chmod u-x,g-wx,o-wx /etc/group
+
+#6.1.5 Ensure permissions on /etc/passwd-are configured (Automated)
+#Run the following commands to set owner, group, and permissions on /etc/passwd-:
+chown root:root /etc/passwd-
+chmod u-x,go-wx /etc/passwd-
+
+#6.1.6 Ensure permissions on /etc/shadow-are configured (Automated)
+#Run the following commands to set owner, group, and permissions on /etc/shadow-:
+chown root:shadow /etc/shadow-
+chmod u-x,g-wx,o-rwx /etc/shadow-
+
+#6.1.7 Ensure permissions on /etc/group-are configured (Automated)
+#run the following commands to set owner, group, and permissions on /etc/group-:
+chown root:root /etc/group-
+chmod u-x,go-wx /etc/group-
+
+#6.1.8 Ensure no world writable files exist (Automated)
+#Run the following command and verify no files are returned:
+df --local -P | awk '{if (NR!=1) print $6}' | xargs -I '{}' find '{}' -xdev -type f -perm -0002
+
+#6.1.9 Ensure no unowned files or directories exist (Automated)
+#Run the following command and verify no files are returned:
+df --local -P | awk {'if (NR!=1) print $6'} | xargs -I '{}' find '{}' -xdev -nouser
+
+#6.1.10 Ensure no ungrouped files or directories exist (Automated)
+#Run the following command and verify no files are returned:
+df --local -P | awk '{if (NR!=1) print $6}' | xargs -I '{}' find '{}' -xdev -nogroup
+
+#6.1.11 Audit SUID executables (Manual)
+#Run the following command to list SUID files:
+df --local -P | awk '{if (NR!=1) print $6}' | xargs -I '{}' find '{}' -xdev -type f -perm -4000
+
+#6.1.12 Audit SGID executables (Manual)
+#Run the following command to list SGID files:
+df --local -P | awk '{if (NR!=1) print $6}' | xargs -I '{}' find '{}' -xdev -type f -perm -2000
+
+#6.2 User and Group Settings
+#6.2.1 Ensure accounts in /etc/passwd use shadowed passwords (Automated)
+#Run the following command and verify that no outputis returned:
+awk -F: '($2 != "x" ) { print $1 " is not set to shadowed passwords "}' /etc/passwd
+#If any accounts in the /etc/passwdfile do not have a single x in the password field, run the following command to set these accounts to use shadowed passwords:
+ sed -e 's/^\([a-zA-Z0-9_]*\):[^:]*:/\1:x:/' -i /etc/passwd
+ 
+ #6.2.2 Ensure /etc/shadow password fields are not empty (Automated)
+ #Run the following command and verify that no output is returned:
+ awk -F: '($2 == "" ) { print $1 " does not have a password "}' /etc/shadow
+ 
+ #6.2.3 Ensure root is the only UID 0 account (Automated)
+ #Run the following command and verifythat only "root" is returned:
+ awk -F: '($3 == 0) { print $1 }' /etc/passwdroot
+ 
+ #6.2.4 Ensure root PATH Integrity (Automated)
+ #Run the following script and verify no results are returned:
+ #!/bin/bash
+ if echo "$PATH" | grep -q "::" ; then
+ echo "Empty Directory in PATH (::)"
+ fi  if echo "$PATH"| grep -q ":$" ; then 
+ echo "Trailing : in PATH" 
+ fi 
+ for x in $(echo "$PATH" | tr ":" " ") ; do
+ if [ -d "$x" ] ; then
+ ls -ldH "$x" | awk '
+ $9 == "." {print "PATH contains current working directory (.)"}
+ $3 != "root" {print $9, "is not owned by root"}
+ substr($1,6,1) != "-" {print $9, "is group writable"}
+ substr($1,9,1) != "-" {print $9, "is world writable"}'
+ else
+ echo "$x is not a directory"
+ fi
+ done
+
+#6.2.5 Ensure all users' home directories exist (Automated)
+#Run the following script and verify no results are returned:
+#!/bin/bash
+grep-E -v '^(halt|sync|shutdown)' /etc/passwd | awk -F: '($7 != "'"$(which 
+nologin)"'" && $7 != "/bin/false") { print $1 " " $6 }' | while read -r user dir; doif [ ! -d "$dir" ]; thenecho "The home directory ($dir) of user
+$user does not exist."
+fi
+done
+
+#6.2.6 Ensure users' home directories permissions are 750 or more restrictive (Automated)
+#!/bin/bash
+grep -E -v '^(halt|sync|shutdown)' /etc/passwd | awk -F: '($7 != "'"$(which nologin)"'" && $7 != "/bin/false") { print $1 " " $6 }' | while read user dir; do
+if [ ! -d "$dir" ]; thenecho "The home directory ($dir) of user $user does not exist."
+else
+dirperm=$(ls -ld $dir | cut -f1 -d" ")if [ $(echo $dirperm | cut -c6) != "-" ]; thenecho "Group Write permission set on the home directory ($dir) of user 
+$user"
+fi
+if [ $(echo $dirperm | cut -c8) != "-" ]; thenecho "Other Read permission set on the home directory ($dir) of user
+$user"
+fi
+if [ $(echo $dirperm | cut -c9) != "-" ]; then
+echo "Other Write permission set on the home directory ($dir) of user
+
+$user"
+fi
+if [ $(echo $dirperm | cut -c10) != "-" ]; thenecho "Other Execute permission set on the home directory ($dir) of user 
+$user"
+fi 
+  fin 
+  done
+  
+  #6.2.7 Ensure users own their home directories (Automated)
+  grep -E -v '^(halt|sync|shutdown)' /etc/passwd | awk -F: '($7 != "'"$(which nologin)"'" && $7 != "/bin/false") { print $1 " " $6 }' | while read user dir; do
+  if [ ! -d "$dir" ]; thenecho "The home directory ($dir) of user $user does not exist."
+  else 
+  wner=$(stat -L -c "%U" "$dir")if [ "$owner" != "$user" ]; thenecho "The home directory ($dir) of user $user is owned by $owner."
+    fi
+  fi
+  done
+  
+  #6.2.8 Ensure users' dot files are not group or world writable (Automated)
+  ##!/bin/bash
+  grep -E -v '^(halt|sync|shutdown)' /etc/passwd | awk -F: '($7 != "'"$(which nologin)"'" && $7 != "/bin/false") { print $1 " " $6 }' | while read user dir; do
+  if [ ! -d "$dir" ]; thenecho "The home directory ($dir) of user $user does not exist."
+  else
+  for file in $dir/.[A-Za-z0-9]*; do
+  if [ ! -h "$file" -a -f "$file" ];
+  thenfileperm=$(ls -ld $file | cut -f1 -d" ")
+  if [ $(echo $fileperm | cut -c6)  != "-" ]; thenecho "Group Write permission set on file $file"
+  fi
+  if [ $(echo $fileperm | cut -c9)  != "-" ]; thenecho "Other Write permissionset on file $file"
+    fi
+     fi
+     done
+   fi 
+  done 
+  
+  #6.2.9 Ensure no users have .forward files (Automated)
+  #!/bin/bash 
+ # awk -F: '($1 !~ /^(root|halt|sync|shutdown)$/ && $7 != "'"$(which nologin)"'" && $7 != "/bin/false" && $7 != "/usr/bin/false") { print $1 " " $6 }' /etc/passwd | while read user dir; do
+ if [ ! -d "$dir" ] ; thenecho "The home directory ($dir) of user $user does not exist."
+ else
+ else
+ if [ ! -h "$dir/.forward" -a -f "$dir/.forward" ] ; thenecho ".forward file $dir/.forward exists"
+  
 
 
 
