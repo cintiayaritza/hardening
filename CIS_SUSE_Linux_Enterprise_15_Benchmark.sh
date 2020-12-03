@@ -2117,8 +2117,10 @@ zypper install rsyslog
  grep ^\$FileCreateMode /etc/rsyslog.conf /etc/rsyslog.d/*.conf
 
 #Edit the /etc/rsyslog.conf and /etc/rsyslog.d/*.conf files and set $FileCreateMode to 0640 or more restrictive
-echo "$FileCreateMode 0640" < /etc/rsyslog.conf
-echo "$FileCreateMode 0640" << /etc/rsyslog.d/*.conf
+vi /etc/rsyslog.conf
+vi /etc/rsyslog.d/*.conf
+#$FileCreateMode 
+#$FileCreateMode 0640
 
 #4.2.1.4 Ensure logging is configured (Manual)
 #The /etc/rsyslog.conf and /etc/rsyslog.d/*.conf files specifies rules for logging and which files are to be used to log certain classes of messages.
